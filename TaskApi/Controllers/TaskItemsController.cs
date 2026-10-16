@@ -64,7 +64,7 @@ namespace TaskApi.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Update (int id, UpdateTaskItemDto dto)
         {
-            await _taskItemService.UpdateASync(id, dto);
+            await _taskItemService.UpdateAsync(id, dto);
             return NoContent();
         }
 

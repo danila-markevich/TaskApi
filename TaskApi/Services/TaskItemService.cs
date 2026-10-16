@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using AutoMapper;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 using TaskApi.Data;
 using TaskApi.DTOs;
 using TaskApi.Exceptions;
@@ -9,132 +11,77 @@ namespace TaskApi.Services
     public class TaskItemService : ITaskItemService
     {
         private readonly ApplicationDbContext _context;
-        public TaskItemService(ApplicationDbContext context)
+        private readonly IMapper _mapper;
+
+        public TaskItemService(ApplicationDbContext context, IMapper mapper)
         {
             _context = context;
+            _mapper = mapper;
         }
 
         public async Task<List<TaskItemDto>> GetAllAsync()
         {
             var tasks = await _context.TaskItems
-                .Select(t => new TaskItemDto
-                {
-                    Id = t.Id,
-                    ProjectId = t.ProjectId,
-                    ProjectName = t.Project.Name != null ? t.Project.Name : null,
-                    ExecutorId = t.ExecutorId,
-                    ExecutorName = t.Executor.Name != null ? t.Executor.Name : null,
-                    Title = t.Title,
-                    Description = t.Description,
-                    Status = t.Status,
-                    Priority = t.Priority,
-                    Deadline = t.Deadline,
-                })
+                .Include(t => t.Project)
+                .Include(t => t.Executor)
                 .ToListAsync();
 
-            return tasks;
+            return _mapper.Map<List<TaskItemDto>>(tasks);
         }
 
         public async Task<List<TaskItemDto>> GetByProjectAsync(int projectId)
         {
-            var projectExist = await _context.Projects.AnyAsync(p=>p.Id == projectId);
+            var projectExist = await _context.Projects.AnyAsync(p => p.Id == projectId);
             if (!projectExist)
                 throw new NotFoundException($"Project with id {projectId} not found");
 
-            var taskByProject = await _context.TaskItems
-                .Where(t =>  t.ProjectId == projectId)
-                .Select(t=> new TaskItemDto
-                {
-                    Id=t.Id,
-                    ProjectId=t.ProjectId,
-                    ProjectName = t.Project.Name != null ? t.Project.Name : null,
-                    ExecutorId=t.ExecutorId,
-                    ExecutorName = t.Executor.Name != null ? t.Executor.Name : null,
-                    Title = t.Title,
-                    Description =t.Description,
-                    Status=t.Status,
-                    Priority = t.Priority,
-                    Deadline = t.Deadline,
-                })
-                .ToListAsync() ;
+            var tasks = await _context.TaskItems
+                .Where(t => t.ProjectId == projectId)
+                .Include(t => t.Project)
+                .Include(t => t.Executor)
+                .ToListAsync();
 
-            return taskByProject;
+            return _mapper.Map<List<TaskItemDto>>(tasks);
         }
 
         public async Task<List<TaskItemDto>> GetByExecutorAsync(int executorId)
         {
-            var executorExist = await _context.Executors.AnyAsync(e=> e.Id == executorId);
+            var executorExist = await _context.Executors.AnyAsync(e => e.Id == executorId);
             if (!executorExist)
                 throw new NotFoundException($"Executor with id {executorId} not found");
-            var taskByExecutor = await _context.TaskItems
-                .Where (t => t.ExecutorId == executorId)
-                .Select(t=> new TaskItemDto
-                {
-                    Id = t.Id,
-                    ProjectId = t.ProjectId,
-                    ProjectName = t.Project.Name != null ? t.Project.Name : null,
-                    ExecutorId = t.ExecutorId,
-                    ExecutorName = t.Executor.Name != null ? t.Executor.Name : null,
-                    Title = t.Title,
-                    Description = t.Description,
-                    Status = t.Status,
-                    Priority = t.Priority,
-                    Deadline = t.Deadline,
-                })
+
+            var tasks = await _context.TaskItems
+                .Where(t => t.ExecutorId == executorId)
+                .Include(t => t.Project)
+                .Include(t => t.Executor)
                 .ToListAsync();
 
-            return taskByExecutor;
+            return _mapper.Map<List<TaskItemDto>>(tasks);
         }
 
         public async Task<List<TaskItemDto>> GetByStatusAsync(string status)
         {
-            var taskByStatus = await _context.TaskItems
+            var tasks = await _context.TaskItems
                 .Where(t => t.Status == status)
-                .Select (t=> new TaskItemDto
-                {
-                    Id = t.Id,
-                    ProjectId = t.ProjectId,
-                    ProjectName = t.Project.Name != null ? t.Project.Name : null,
-                    ExecutorId = t.ExecutorId,
-                    ExecutorName = t.Executor.Name != null ? t.Executor.Name : null,
-                    Title = t.Title,
-                    Description = t.Description,
-                    Status = t.Status,
-                    Priority = t.Priority,
-                    Deadline = t.Deadline,
-                })
-                .ToListAsync (); 
-            
-            return taskByStatus;
+                .Include(t => t.Project)
+                .Include(t => t.Executor)
+                .ToListAsync();
+
+            return _mapper.Map<List<TaskItemDto>>(tasks);
         }
-
-
-
 
         public async Task<TaskItemDto> GetByIdAsync(int id)
         {
             var taskItem = await _context.TaskItems
-                .Select (t => new TaskItemDto
-                {
-                    Id = t.Id,
-                    ProjectId = t.ProjectId,
-                    ProjectName = t.Project.Name != null ? t.Project.Name : null,
-                    ExecutorId = t.ExecutorId,
-                    ExecutorName = t.Executor.Name != null ? t.Executor.Name : null,
-                    Title = t.Title,
-                    Description = t.Description,
-                    Status = t.Status,
-                    Priority = t.Priority,
-                    Deadline = t.Deadline,
-                })
-                .FirstOrDefaultAsync(t=>  t.Id == id);
+                .Include(t => t.Project)
+                .Include(t => t.Executor)
+                .FirstOrDefaultAsync(t => t.Id == id);
 
             if (taskItem == null)
                 throw new NotFoundException($"Task with id {id} not found");
 
-            return taskItem;
+            return _mapper.Map<TaskItemDto>(taskItem);
         }
-
 
         public async Task<TaskItemDto> CreateAsync(CreateTaskItemDto dto)
         {
@@ -146,70 +93,41 @@ namespace TaskApi.Services
             if (executorExist == null)
                 throw new BadRequestException($"Executor with id {dto.ExecutorId} not found");
 
-            var taskItem = new TaskItem
-            {
-                ExecutorId = dto.ExecutorId,
-                ProjectId = dto.ProjectId,
-                Title = dto.Title,
-                Description= dto.Description,
-                Status= dto.Status,
-                Priority    = dto.Priority,
-                Deadline= dto.Deadline,
-            };
+            var taskItem = _mapper.Map<TaskItem>(dto);
 
             _context.TaskItems.Add(taskItem);
             await _context.SaveChangesAsync();
 
-            var result = new TaskItemDto
-            {
-                Id = taskItem.Id,
-                ProjectId = taskItem.ProjectId,
-                ProjectName = projectExist.Name,
-                ExecutorId = taskItem.ExecutorId,
-                ExecutorName = executorExist.Name,
-                Title = taskItem.Title,
-                Description = taskItem.Description,
-                Status = taskItem.Status,
-                Priority = taskItem.Priority,
-                Deadline = taskItem.Deadline,
-            };
+            taskItem.Project = projectExist;
+            taskItem.Executor = executorExist;
 
-            return result;
+            return _mapper.Map<TaskItemDto>(taskItem);
         }
 
-
-        public async Task UpdateASync(int id, UpdateTaskItemDto dto)
+        public async Task UpdateAsync(int id, UpdateTaskItemDto dto)
         {
             var existing = await _context.TaskItems.FindAsync(id);
             if (existing == null)
                 throw new NotFoundException($"Task with id {id} not found");
 
-            if (dto.ExecutorId != existing.ExecutorId) 
+            if (dto.ExecutorId != existing.ExecutorId)
             {
                 var executorExist = await _context.Executors.AnyAsync(e => e.Id == dto.ExecutorId);
                 if (!executorExist)
                     throw new BadRequestException($"Executor with id {dto.ExecutorId} not found");
             }
 
-            if (dto.ProjectId != existing.ProjectId)   
+            if (dto.ProjectId != existing.ProjectId)
             {
                 var projectExist = await _context.Projects.AnyAsync(p => p.Id == dto.ProjectId);
                 if (!projectExist)
                     throw new BadRequestException($"Project with id {dto.ProjectId} not found");
             }
 
-            existing.ExecutorId = dto.ExecutorId;
-            existing.ProjectId = dto.ProjectId;
-            existing.Title = dto.Title;
-            existing.Description = dto.Description;
-            existing.Status = dto.Status;
-            existing.Priority = dto.Priority;
-            existing.Deadline = dto.Deadline;
+            _mapper.Map(dto, existing);
 
             await _context.SaveChangesAsync();
-
         }
-
 
         public async Task DeleteAsync(int id)
         {
@@ -219,8 +137,6 @@ namespace TaskApi.Services
 
             _context.TaskItems.Remove(taskItem);
             await _context.SaveChangesAsync();
-                
         }
-
     }
 }

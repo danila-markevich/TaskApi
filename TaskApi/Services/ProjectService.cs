@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 using TaskApi.Data;
 using TaskApi.DTOs;
 using TaskApi.Exceptions;
@@ -9,69 +10,43 @@ namespace TaskApi.Services
     public class ProjectService : IProjectService
     {
         private readonly ApplicationDbContext _context;
-        
-        public ProjectService(ApplicationDbContext context)
+        private readonly IMapper _mapper;
+
+        public ProjectService(ApplicationDbContext context, IMapper mapper)
         {
             _context = context;
+            _mapper = mapper;
         }
 
         public async Task<List<ProjectDto>> GetAllAsync()
         {
             var projects = await _context.Projects
-                .Select(p => new ProjectDto
-                {
-                    Id = p.Id,
-                    Name = p.Name,
-                    Description = p.Description,
-                    StartDate = p.StartDate,
-                    TasksCount = p.Tasks.Count(),
-                })
+                .Include(p => p.Tasks)
                 .ToListAsync();
 
-            return projects;
+            return _mapper.Map<List<ProjectDto>>(projects);
         }
 
-        public async Task<ProjectDto> GetByIdAsync (int id)
+        public async Task<ProjectDto> GetByIdAsync(int id)
         {
             var project = await _context.Projects
-                .Select (p => new ProjectDto
-                {
-                    Id = p.Id,
-                    Name = p.Name,
-                    Description= p.Description,
-                    StartDate= p.StartDate,
-                    TasksCount= p.Tasks.Count(),
-                })
-                .FirstOrDefaultAsync(p=>  p.Id == id);
+                .Include(p => p.Tasks)
+                .FirstOrDefaultAsync(p => p.Id == id);
 
             if (project == null)
                 throw new NotFoundException($"Project with id {id} not found");
 
-            return project;
+            return _mapper.Map<ProjectDto>(project);
         }
 
         public async Task<ProjectDto> CreateAsync(CreateProjectDto dto)
         {
-            var project = new Project
-            {
-                Name = dto.Name,
-                Description = dto.Description,
-                StartDate = DateTime.Now
-            };
+            var project = _mapper.Map<Project>(dto);
 
             _context.Projects.Add(project);
             await _context.SaveChangesAsync();
 
-            var result = new ProjectDto
-            {
-                Id = project.Id,
-                Name = project.Name,
-                Description = project.Description,
-                StartDate = project.StartDate,
-                TasksCount = 0
-            };
-
-            return result;
+            return _mapper.Map<ProjectDto>(project);
         }
 
         public async Task UpdateAsync(int id, UpdateProjectDto dto)
@@ -80,27 +55,22 @@ namespace TaskApi.Services
             if (existing == null)
                 throw new NotFoundException($"Project with id {id} not found");
 
-            existing.Name = dto.Name;
-            existing.Description = dto.Description;
-            existing.StartDate = dto.StartDate;
+            _mapper.Map(dto, existing);
 
             await _context.SaveChangesAsync();
-
-
         }
 
         public async Task DeleteAsync(int id)
         {
             var project = await _context.Projects
-                .Include(p=> p.Tasks)
-                .FirstOrDefaultAsync(p=>  p.Id == id);
+                .Include(p => p.Tasks)
+                .FirstOrDefaultAsync(p => p.Id == id);
 
             if (project == null)
                 throw new NotFoundException($"Project with id {id} not found");
 
             _context.Projects.Remove(project);
             await _context.SaveChangesAsync();
-
         }
     }
 }

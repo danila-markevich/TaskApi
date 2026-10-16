@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 using TaskApi.Data;
 using TaskApi.DTOs;
 using TaskApi.Exceptions;
@@ -9,69 +10,43 @@ namespace TaskApi.Services
     public class ExecutorService : IExecutorService
     {
         private readonly ApplicationDbContext _context;
+        private readonly IMapper _mapper;
 
-        public ExecutorService(ApplicationDbContext context)
+        public ExecutorService(ApplicationDbContext context, IMapper mapper)
         {
             _context = context;
+            _mapper = mapper;
         }
 
         public async Task<List<ExecutorDto>> GetAllAsync()
         {
             var executors = await _context.Executors
-                .Select(e => new ExecutorDto
-                {
-                    Id = e.Id,
-                    Name = e.Name,
-                    Email = e.Email,
-                    Specialty = e.Specialty,
-                    TasksCount = e.Tasks.Count(),
-                })
+                .Include(e => e.Tasks)
                 .ToListAsync();
 
-            return executors;
+            return _mapper.Map<List<ExecutorDto>>(executors);
         }
 
         public async Task<ExecutorDto> GetByIdAsync(int id)
         {
             var executor = await _context.Executors
-                .Select(e => new ExecutorDto
-                {
-                    Id = e.Id,
-                    Name = e.Name,
-                    Email = e.Email,   
-                    Specialty = e.Specialty,
-                    TasksCount = e.Tasks.Count(),
-                })
+                .Include(e => e.Tasks)
                 .FirstOrDefaultAsync(e => e.Id == id);
 
             if (executor == null)
                 throw new NotFoundException($"Executor with id {id} not found");
 
-            return executor;
+            return _mapper.Map<ExecutorDto>(executor);
         }
 
         public async Task<ExecutorDto> CreateAsync(CreateExecutorDto dto)
         {
-            var executor = new Executor
-            {
-                Name = dto.Name,
-                Email = dto.Email,
-                Specialty = dto.Specialty,
-            };
+            var executor = _mapper.Map<Executor>(dto);
 
             _context.Executors.Add(executor);
             await _context.SaveChangesAsync();
 
-            var result = new ExecutorDto
-            {
-                Id = executor.Id,
-                Name = executor.Name,
-                Email = executor.Email,
-                Specialty= executor.Specialty,
-                TasksCount = 0
-            };
-
-            return result;
+            return _mapper.Map<ExecutorDto>(executor);
         }
 
         public async Task UpdateAsync(int id, UpdateExecutorDto dto)
@@ -80,13 +55,9 @@ namespace TaskApi.Services
             if (existing == null)
                 throw new NotFoundException($"Executor with id {id} not found");
 
-            existing.Name = dto.Name;
-            existing.Email = dto.Email;
-            existing.Specialty = dto.Specialty;
+            _mapper.Map(dto, existing);
 
             await _context.SaveChangesAsync();
-
-
         }
 
         public async Task DeleteAsync(int id)
@@ -100,8 +71,6 @@ namespace TaskApi.Services
 
             _context.Executors.Remove(executor);
             await _context.SaveChangesAsync();
-
         }
     }
 }
-
