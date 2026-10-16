@@ -11,6 +11,8 @@ namespace TaskApi.Data
         public DbSet<Project> Projects { get; set; }
         public DbSet<Executor> Executors { get; set; }
         public DbSet<TaskItem> TaskItems { get; set; }
+        public DbSet<User> Users { get; set; }
+
 
     }
 }
