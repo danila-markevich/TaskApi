@@ -10,6 +10,8 @@ REST API для управления задачами на ASP.NET Core Web API.
 - SQL Server — база данных
 - Service Layer — бизнес-логика отделена от контроллеров
 - Global Exception Handling — middleware
+- JWT-аутентификация (Microsoft.AspNetCore.Authentication.JwtBearer)
+- BCrypt для хэширования паролей
 
 ## Функциональность
 
@@ -22,6 +24,7 @@ REST API для управления задачами на ASP.NET Core Web API.
 - DTO для запросов и ответов
 - Валидация входных данных (Data Annotations)
 - Swagger UI для тестирования
+- JWT-аутентификация (регистрация, логин, защита эндпоинтов)
 
 ## Эндпоинты
 
@@ -57,6 +60,13 @@ REST API для управления задачами на ASP.NET Core Web API.
 | GET | /api/taskitems/project/{projectId} | Задачи проекта |
 | GET | /api/taskitems/executor/{executorId} | Задачи исполнителя |
 | GET | /api/taskitems/status/{status} | Задачи с определённым статусом |
+
+### Auth
+
+| Метод | URL | Описание |
+|-------|-----|----------|
+| POST | /api/auth/register | Регистрация |
+| POST | /api/auth/login | Логин (возвращает JWT-токен) |
 
 ## Архитектура
 
