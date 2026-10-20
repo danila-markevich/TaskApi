@@ -19,14 +19,52 @@ namespace TaskApi.Services
             _mapper = mapper;
         }
 
-        public async Task<List<TaskItemDto>> GetAllAsync()
+        public async Task<PagedResultDto<TaskItemDto>> GetAllAsync(PagedRequestDto request)
         {
-            var tasks = await _context.TaskItems
+
+            var query = _context.TaskItems.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(request.Search)) 
+            {
+                query = query.Where(t => t.Title.Contains(request.Search));
+            }
+
+            query = request.SortBy?.ToLower() switch
+            {
+                "title" => request.SortDesc
+                ? query.OrderByDescending(t => t.Title)
+                : query.OrderBy(t => t.Title),
+                "status" => request.SortDesc
+                ? query.OrderByDescending(t => t.Status)
+                : query.OrderBy(t => t.Status),
+                "priority" => request.SortDesc
+                ? query.OrderByDescending(t => t.Priority)
+                : query.OrderBy(t => t.Priority),
+                "deadline" => request.SortDesc
+                ? query.OrderByDescending(t => t.Deadline)
+                : query.OrderBy(t => t.Deadline),
+                _ => query.OrderBy(t => t.Id),
+            };
+
+            var totalCount = await query.CountAsync();
+
+            var tasks = await query
+                .Skip((request.Page - 1) * request.PageSize)
+                .Take(request.PageSize)
                 .Include(t => t.Project)
                 .Include(t => t.Executor)
                 .ToListAsync();
 
-            return _mapper.Map<List<TaskItemDto>>(tasks);
+            var items = _mapper.Map<List<TaskItemDto>>(tasks);
+
+            return new PagedResultDto<TaskItemDto>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = request.Page,
+                PageSize = request.PageSize,
+                TotalPages = (int)Math.Ceiling((double)totalCount / request.PageSize)
+            };
         }
 
         public async Task<List<TaskItemDto>> GetByProjectAsync(int projectId)

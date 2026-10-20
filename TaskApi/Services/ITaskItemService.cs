@@ -4,7 +4,7 @@ namespace TaskApi.Services
 {
     public interface ITaskItemService
     {
-        Task<List<TaskItemDto>> GetAllAsync();
+        Task<PagedResultDto<TaskItemDto>> GetAllAsync(PagedRequestDto request);
         Task<TaskItemDto> GetByIdAsync(int id);
         Task<TaskItemDto> CreateAsync(CreateTaskItemDto dto);
         Task UpdateAsync(int id, UpdateTaskItemDto dto);

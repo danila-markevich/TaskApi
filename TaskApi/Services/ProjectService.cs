@@ -18,13 +18,45 @@ namespace TaskApi.Services
             _mapper = mapper;
         }
 
-        public async Task<List<ProjectDto>> GetAllAsync()
+        public async Task<PagedResultDto<ProjectDto>> GetAllAsync(PagedRequestDto request)
         {
-            var projects = await _context.Projects
+            
+            var query = _context.Projects.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                query = query.Where(p => p.Name.Contains(request.Search));
+            }
+
+            query = request.SortBy?.ToLower() switch
+            {
+                "name" => request.SortDesc
+                    ? query.OrderByDescending(p => p.Name)
+                    : query.OrderBy(p => p.Name),
+                "startdate" => request.SortDesc
+                    ? query.OrderByDescending(p => p.StartDate)
+                    : query.OrderBy(p => p.StartDate),
+                _ => query.OrderBy(p => p.Id)
+            };
+
+            var totalCount = await query.CountAsync();
+
+            var projects = await query
+                .Skip((request.Page - 1) * request.PageSize)
+                .Take(request.PageSize)
                 .Include(p => p.Tasks)
                 .ToListAsync();
 
-            return _mapper.Map<List<ProjectDto>>(projects);
+            var items = _mapper.Map<List<ProjectDto>>(projects);
+
+            return new PagedResultDto<ProjectDto>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = request.Page,
+                PageSize = request.PageSize,
+                TotalPages = (int)Math.Ceiling((double)totalCount / request.PageSize)
+            };
         }
 
         public async Task<ProjectDto> GetByIdAsync(int id)

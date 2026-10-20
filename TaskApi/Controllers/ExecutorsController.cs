@@ -20,9 +20,9 @@ namespace TaskApi.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<ExecutorDto>>> GetAll()
+        public async Task<ActionResult<PagedResultDto<ExecutorDto>>> GetAll([FromQuery] PagedRequestDto request)
         {
-            var result = await _executorService.GetAllAsync();
+            var result = await _executorService.GetAllAsync(request);
             return result;
         }
 

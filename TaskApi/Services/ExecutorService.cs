@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Azure.Core;
 using Microsoft.EntityFrameworkCore;
 using TaskApi.Data;
 using TaskApi.DTOs;
@@ -18,13 +19,47 @@ namespace TaskApi.Services
             _mapper = mapper;
         }
 
-        public async Task<List<ExecutorDto>> GetAllAsync()
+        public async Task<PagedResultDto<ExecutorDto>> GetAllAsync(PagedRequestDto request)
         {
-            var executors = await _context.Executors
+            var query = _context.Executors.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                query = query.Where(e => e.Name.Contains(request.Search));
+            }
+
+            query = request.SortBy?.ToLower() switch
+            {
+                "name" => request.SortDesc
+                    ? query.OrderByDescending(e => e.Name)
+                    : query.OrderBy(e => e.Name),
+                "email" => request.SortDesc
+                    ? query.OrderByDescending(e => e.Email)
+                    : query.OrderBy(e => e.Email),
+                "specialty" => request.SortDesc
+                    ? query.OrderByDescending(e => e.Specialty)
+                    : query.OrderBy(e => e.Specialty),
+                _ => query.OrderBy(e => e.Id)
+            };
+
+            var totalCount = await query.CountAsync();
+
+            var executors = await query
+                .Skip((request.Page - 1) * request.PageSize)
+                .Take(request.PageSize)
                 .Include(e => e.Tasks)
                 .ToListAsync();
 
-            return _mapper.Map<List<ExecutorDto>>(executors);
+            var items = _mapper.Map<List<ExecutorDto>>(executors);
+
+            return new PagedResultDto<ExecutorDto>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = request.Page,
+                PageSize = request.PageSize,
+                TotalPages = (int)Math.Ceiling((double)totalCount / request.PageSize)
+            };
         }
 
         public async Task<ExecutorDto> GetByIdAsync(int id)

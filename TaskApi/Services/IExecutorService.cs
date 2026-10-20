@@ -4,7 +4,7 @@ namespace TaskApi.Services
 {
     public interface IExecutorService
     {
-        Task<List<ExecutorDto>> GetAllAsync();
+        Task<PagedResultDto<ExecutorDto>> GetAllAsync(PagedRequestDto request);
         Task<ExecutorDto> GetByIdAsync(int id);
         Task<ExecutorDto> CreateAsync(CreateExecutorDto dto);
         Task UpdateAsync(int id, UpdateExecutorDto dto);
